@@ -1,7 +1,7 @@
 pipeline {
     agent any
     options {
-        timestamp()
+        timestamps()
     }
     stages {
         stage('Build a Docker Image') { 
