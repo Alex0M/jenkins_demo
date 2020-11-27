@@ -1,5 +1,6 @@
 pipeline {
     agent any
+    triggers { pollSCM('* * * * *') }
     options {
         timestamps()
     }
@@ -7,6 +8,11 @@ pipeline {
         stage('Build a Docker Image') { 
             steps {
                 sh ("docker build -t myapp:dev.${env.BUILD_NUMBER} .")
+            }
+        }
+        stage('Stop docker container') { 
+            steps {
+                sh ("docker stop myapp")
             }
         }
         stage('Deploy app') { 
