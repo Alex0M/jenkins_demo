@@ -1,0 +1,58 @@
+node {
+  def is_container_exist = false
+  def image_name = 'myapp'
+  def String container_name
+  def String image_tag
+  def String second_image_tag
+  def String port
+
+  checkout scm
+
+  switch (env.BRANCH_NAME) {
+      case "dev": 
+        container_name = image_name+"-dev"
+        image_tag = image_name+":dev."+env.BUILD_NUMBER
+        second_image_tag = image_name+":latest"
+        port = "8081"
+        break
+
+      case "master":
+        container_name = image_name+"-prod"
+        port = "80"
+        print "Container name: "+container_name
+        break
+
+      case ~/release-(.*)/:
+        container_name = image_name+"-qa"
+        def version = env.BRANCH_NAME.split('-')
+        image_tag = image_name+":"+version[1]+"."+env.BUILD_NUMBER
+        second_image_tag = image_name+":"+version[1]
+        port = "8082"
+  }
+  
+ if (env.BRANCH_NAME != "master"){
+   stage('Build a Docker Image') 
+   {  
+       sh ("docker build -t ${image_tag} .")
+       sh ("docker tag ${image_tag} ${second_image_tag}")
+   }
+}
+
+ stage ("Deploy app")
+ {
+  switch (env.BRANCH_NAME) {
+    case "master":
+        def user_input = input(
+          id: 'userInput', message: 'Version number?', parameters: [
+          [$class: 'TextParameterDefinition', description: 'Version', name: 'version']
+        ])
+        sh ("""[ "\$(docker ps -q -f name=${container_name})" ] && docker stop ${container_name} || echo 'Container is not running' """)
+        sh ("docker run --name=${container_name} --rm -d -p ${port}:5000 ${image_name}:${user_input}")
+        break
+
+    default:
+       sh ("""[ "\$(docker ps -q -f name=${container_name})" ] && docker stop ${container_name} || echo 'Container is not running' """)
+       sh ("docker run --name=${container_name} --rm -d -p ${port}:5000 ${image_tag}")
+    }
+  }
+}
